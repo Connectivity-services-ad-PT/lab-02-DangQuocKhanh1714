@@ -1,29 +1,32 @@
 # Phân tích yêu cầu — vai Consumer
 
-- Cặp đàm phán:
+- Cặp đàm phán: #3 Core Business + Access Gate
 - Product: A / B
-- Consumer service:
-- Provider service:
-- Người viết:
-- Ngày:
+- Provider service: Core Business (B6)
+- Consumer service: Access Gate (B3)
+- Người viết: B6
+- Ngày: 20-05-2026
 
 ---
 
 ## 1. Resource Consumer cần nhận/gửi
 
-| Resource | Consumer dùng để làm gì? | Field bắt buộc với Consumer | Field có thể tùy chọn |
+| Resource | Mô tả | Thuộc tính bắt buộc | Thuộc tính tùy chọn |
 |---|---|---|---|
-| `<Resource 1>` |  |  |  |
-| `<Resource 2>` |  |  |  |
+| AccessCheck | Kết quả kiểm tra quyền ra/vào của thẻ tại cổng | decision, reasonCode, policyId, evaluatedAt | expiresAt, traceId, additionalData |
+| Policy | Thông tin chi tiết về policy kiểm soát truy cập | policyId, name, effect (ALLOW/DENY), priority | description, timeRange, condition |
+| DecisionHistory | Lưu lại quyết định đã kiểm tra | decisionId, policyId, subjectId, decision, timestamp | gateId, requestPayload |
 
 ---
 
 ## 2. API Consumer cần gọi
 
-| Method | Path | Lúc nào gọi? | Kỳ vọng response |
+| Method | Path | Mục đích | Consumer gọi khi nào? |
 |---|---|---|---|
-| POST | `/...` |  |  |
-| GET | `/.../{id}` |  |  |
+| POST | `/access/check` | Kiểm tra realtime policy trước khi mở cổng | Mỗi lần có thẻ quẹt tại gate |
+| GET | `/policies/access/{policyId}` | Lấy chi tiết policy (cấu hình rule) | Khi gate cần cache hoặc debug |
+| GET | `/decisions/{decisionId}` | Tra cứu lại quyết định đã xử lý | Khi audit hoặc xử lý bất đồng bộ |
+| GET | `/health` | Kiểm tra sức khỏe service | Định kỳ hoặc startup |
 
 ---
 
@@ -31,30 +34,31 @@
 
 Tối thiểu 5 case.
 
-| Status | Consumer hiểu là gì? | Consumer sẽ xử lý thế nào? |
+| Status | Tình huống | Response body dự kiến |
 |---:|---|---|
-| 400 | Request sai schema | Sửa payload/log lỗi |
-| 401 | Thiếu token | Refresh/cấu hình token |
-| 403 | Không đủ quyền | Báo lỗi quyền truy cập |
-| 404 | Không tìm thấy resource | Hiển thị trạng thái không tồn tại |
-| 409 | Xung đột nghiệp vụ | Retry hoặc yêu cầu thao tác lại |
-| 422 | Vi phạm rule nghiệp vụ | Hiển thị lý do cụ thể |
+| 400 | Payload thiếu cardId hoặc gateId | `Problem` với detail |
+| 401 | Thiếu Bearer token | `Problem` |
+| 403 | Token hợp lệ nhưng service không được phép gọi API | `Problem` |
+| 404 | PolicyId không tồn tại | `Problem` |
+| 409 | Request trùng lặp (retry trong thời gian ngắn) | `Problem` |
+| 422 | cardId đúng format nhưng thẻ đã bị khóa/hết hạn | `Problem` |
 
 ---
 
 ## 4. Giả định bổ sung
 
-- Giả định 1:
-- Giả định 2:
-- Giả định 3:
+- Giả định 1: Access Gate có token riêng để gọi Core Business.
+- Giả định 2: Thời gian timeout tối đa cho `/access/check` là 500ms.
+- Giả định 3: Core Business không lưu ảnh hoặc face embedding, chỉ lưu decision log.
+- Giả định 4: Nếu policy không match, mặc định decision = DENY với reasonCode = `NO_MATCHING_POLICY`.
 
 ---
 
 ## 5. Câu hỏi cho Provider
 
-1. 
-2. 
-3. 
+1. Access Gate cần `expiresAt` cho decision không (có thể cache decision trong bao lâu)?
+2. Khi Core Business lỗi, Gate muốn fail-open (mở cổng) hay fail-closed (đóng cổng)?
+3. Mỗi lần quẹt có cần gửi `idempotencyKey` để tránh xử lý trùng không?
 
 ---
 

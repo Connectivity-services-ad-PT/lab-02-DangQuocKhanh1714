@@ -1,11 +1,11 @@
 # Phân tích yêu cầu — vai Provider
 
-- Cặp đàm phán:
+- Cặp đàm phán: #3 Core Business + Access Gate
 - Product: A / B
-- Provider service:
-- Consumer service:
-- Người viết:
-- Ngày:
+- Provider service: Core Business (B6)
+- Consumer service: Access Gate (B3)
+- Người viết: B6
+- Ngày: 20-05-2026
 
 ---
 
